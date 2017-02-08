@@ -32,7 +32,7 @@ static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
 
-bool comp (const struct list_elem * a, const struct list_elem * b, void * aux)
+bool comp (const struct list_elem * a, const struct list_elem * b, void * aux UNUSED)
 {
 	return list_entry ( a, struct thread, elem )->wakeup_ticks < list_entry( b, struct thread, elem )->wakeup_ticks;
 
