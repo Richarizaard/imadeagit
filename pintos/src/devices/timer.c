@@ -7,6 +7,7 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
+
   
 /* See [8254] for hardware details of the 8254 timer chip. */
 
@@ -17,6 +18,7 @@
 #error TIMER_FREQ <= 1000 recommended
 #endif
 
+static struct list sleeping_threads;
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
@@ -30,6 +32,11 @@ static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
 
+bool comp (const struct list_elem * a, const struct list_elem * b, void * aux)
+{
+	return list_entry ( a, struct thread, elem )->wakeup_ticks < list_entry( b, struct thread, elem )->wakeup_ticks;
+
+}
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
 void
@@ -37,6 +44,9 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+  
+  list_init ( &sleeping_threads );
+  
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -90,10 +100,19 @@ void
 timer_sleep (int64_t ticks) 
 {
   int64_t start = timer_ticks ();
-
+  enum intr_level old_level;
+  struct thread *t = thread_current();
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  old_level = intr_disable();
+  t->wakeup_ticks = start + ticks;	
+  list_insert_ordered( &sleeping_threads, &t->elem, &comp, NULL );
+  
+  thread_block();
+  intr_set_level ( old_level );
+  
+  //while (timer_elapsed (start) < ticks)
+  //thread_yield ();
+
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -170,8 +189,26 @@ timer_print_stats (void)
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
+  
   ticks++;
   thread_tick ();
+  if ( !list_empty ( &sleeping_threads ) ) 
+  {
+	  struct thread * t = list_entry ( list_front ( &sleeping_threads ), struct thread, elem );
+	//if ( t->status == THREAD_BLOCKED ) 
+	//{
+		printf("%i %i %i\n", t->status, t->wakeup_ticks, t->tid);
+		//fflush(0);
+	if ( t->wakeup_ticks <= ticks )
+	  {
+		  thread_unblock( t );
+		  //list_remove ( &sleeping_threads );  
+		  list_pop_front( &sleeping_threads ) ;
+		  
+	  }
+	//}
+  }
+ 
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
