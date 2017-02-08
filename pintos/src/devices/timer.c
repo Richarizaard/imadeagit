@@ -108,10 +108,6 @@ timer_sleep (int64_t ticks)
 
   thread_block();
   intr_set_level ( old_level );
-
-  //while (timer_elapsed (start) < ticks)
-  //thread_yield ();
-
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -193,17 +189,12 @@ timer_interrupt (struct intr_frame *args UNUSED)
   if ( !list_empty ( &sleeping_threads ) )
   {
     struct thread * t = list_entry ( list_front ( &sleeping_threads ), struct thread, elem );
-    //if ( t->status == THREAD_BLOCKED )
-    //{
     printf("%i %i %i\n", t->status, t->wakeup_ticks, t->tid);
-    //fflush(0);
     if ( t->wakeup_ticks <= ticks )
     {
       list_pop_front( &sleeping_threads ) ;
       thread_unblock( t );
-      //list_remove ( &sleeping_threads );
     }
-    //}
   }
 }
 
