@@ -201,10 +201,9 @@ timer_interrupt (struct intr_frame *args UNUSED)
 		//fflush(0);
 	if ( t->wakeup_ticks <= ticks )
 	  {
-		  thread_unblock( t );
-		  //list_remove ( &sleeping_threads );  
 		  list_pop_front( &sleeping_threads ) ;
-		  
+		  thread_unblock( t );
+		  //list_remove ( &sleeping_threads );
 	  }
 	//}
   }
