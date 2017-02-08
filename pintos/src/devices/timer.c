@@ -34,8 +34,7 @@ static void real_time_delay (int64_t num, int32_t denom);
 
 bool comp (const struct list_elem * a, const struct list_elem * b, void * aux UNUSED)
 {
-	return list_entry ( a, struct thread, elem )->wakeup_ticks < list_entry( b, struct thread, elem )->wakeup_ticks;
-
+  return list_entry ( a, struct thread, elem )->wakeup_ticks < list_entry( b, struct thread, elem )->wakeup_ticks;
 }
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
@@ -104,12 +103,12 @@ timer_sleep (int64_t ticks)
   struct thread *t = thread_current();
   ASSERT (intr_get_level () == INTR_ON);
   old_level = intr_disable();
-  t->wakeup_ticks = start + ticks;	
+  t->wakeup_ticks = start + ticks;
   list_insert_ordered( &sleeping_threads, &t->elem, &comp, NULL );
-  
+
   thread_block();
   intr_set_level ( old_level );
-  
+
   //while (timer_elapsed (start) < ticks)
   //thread_yield ();
 
@@ -184,30 +183,28 @@ timer_print_stats (void)
 {
   printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
-
+
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
-  
   ticks++;
   thread_tick ();
-  if ( !list_empty ( &sleeping_threads ) ) 
+  if ( !list_empty ( &sleeping_threads ) )
   {
-	  struct thread * t = list_entry ( list_front ( &sleeping_threads ), struct thread, elem );
-	//if ( t->status == THREAD_BLOCKED ) 
-	//{
-		printf("%i %i %i\n", t->status, t->wakeup_ticks, t->tid);
-		//fflush(0);
-	if ( t->wakeup_ticks <= ticks )
-	  {
-		  list_pop_front( &sleeping_threads ) ;
-		  thread_unblock( t );
-		  //list_remove ( &sleeping_threads );
-	  }
-	//}
+    struct thread * t = list_entry ( list_front ( &sleeping_threads ), struct thread, elem );
+    //if ( t->status == THREAD_BLOCKED )
+    //{
+    printf("%i %i %i\n", t->status, t->wakeup_ticks, t->tid);
+    //fflush(0);
+    if ( t->wakeup_ticks <= ticks )
+    {
+      list_pop_front( &sleeping_threads ) ;
+      thread_unblock( t );
+      //list_remove ( &sleeping_threads );
+    }
+    //}
   }
- 
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
