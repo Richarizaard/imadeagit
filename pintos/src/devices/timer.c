@@ -189,7 +189,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
   if ( !list_empty ( &sleeping_threads ) )
   {
     struct thread * t = list_entry ( list_front ( &sleeping_threads ), struct thread, elem );
-    printf("%i %i %i\n", t->status, t->wakeup_ticks, t->tid);
     if ( t->wakeup_ticks <= ticks )
     {
       list_pop_front( &sleeping_threads ) ;
