@@ -186,13 +186,18 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
-  if ( !list_empty ( &sleeping_threads ) )
+  while ( !list_empty ( &sleeping_threads ) )
   {
     struct thread * t = list_entry ( list_front ( &sleeping_threads ), struct thread, elem );
     if ( t->wakeup_ticks <= ticks )
     {
       list_pop_front( &sleeping_threads ) ;
       thread_unblock( t );
+    }
+    else
+    {
+      // No more threads to wakeup
+      break;
     }
   }
 }
