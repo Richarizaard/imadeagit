@@ -39,7 +39,6 @@ bool comp (const struct list_elem * a, const struct list_elem * b, void * aux UN
 int64_t wakeup_ticks;
 
 
-
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe what happens in a call to your timer_sleep(),
@@ -58,9 +57,12 @@ The steps taken to unblock threads are only looked at if the blocked thread list
 >> A4: How are race conditions avoided when multiple threads call
 >> timer_sleep() simultaneously?
 
+By implementing locks within the timer_sleep function
 
 >> A5: How are race conditions avoided when a timer interrupt occurs
 >> during a call to timer_sleep()?
+
+We use a lock_try_acquire in the timer_interupt function so that if the lock is already in use, the critical section is jut skipped. 
 
 
 ---- RATIONALE ----
@@ -68,6 +70,9 @@ The steps taken to unblock threads are only looked at if the blocked thread list
 >> A6: Why did you choose this design?  In what ways is it superior to
 >> other designs that you considered?
 
+We tried to keep the design as simple as possible in an effort to reduce the number of places where problems could potentially occur.
+There's no real guarantee that this is the most efficient way to solve this, since we could shorten our critical sections for the locks. 
+However, it is superior in a sense that the number of things that could go wrong is kept to a minimum.
 
 
              PRIORITY SCHEDULING
@@ -78,6 +83,9 @@ The steps taken to unblock threads are only looked at if the blocked thread list
 >> B1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+
+// A lock that will serve to prevent multiple threads from colliding within timer_sleep and timer_interupt
+static struct lock &sleeping_threads_lock; 
 
 >> B2: Explain the data structure used to track priority donation.
 
@@ -113,6 +121,7 @@ The steps taken to unblock threads are only looked at if the blocked thread list
 >> C1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+
 
 ---- ALGORITHMS ----
 
