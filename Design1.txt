@@ -6,9 +6,9 @@ CIS 520 - Programming Project #1
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@k-state.edu>
-FirstName LastName <email@k-state.edu>
-...
+Samuel Turner-Lill ssl@ksu.edu
+Michael Johnson michaeljohnson@ksu.edu
+Richard Lee leerichard@ksu.edu
 
 ---- PRELIMINARIES ----
 
@@ -29,15 +29,29 @@ FirstName LastName <email@k-state.edu>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+// Used to store the threads that are blocked. Threads are then removed from the list after they are unblocked
+static struct list sleeping_threads;
+
+// Compares the wakeup_ticks property of two threads
+bool comp (const struct list_elem * a, const struct list_elem * b, void * aux UNUSED)
+
+// Property used to determine when a thread is ready to be unblocked
+int64_t wakeup_ticks;
+
+
 
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe what happens in a call to your timer_sleep(),
 >> including the effects of the timer interrupt handler.
 
+The function first disabled interrupts and sets the wakeup_ticks property of the current thread to a future tick. 
+The thread is then added to a list of blocked threads and then a call to thread_block() is made to block the current thread.
+
 >> A3: What steps are taken to minimize the amount of time spent in
 >> the timer interrupt handler?
 
+The steps taken to unblock threads are only looked at if the blocked thread list is not empty. Otherwise we just skip over it.
 
 ---- SYNCHRONIZATION ----
 
