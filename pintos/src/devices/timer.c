@@ -19,6 +19,8 @@
 #endif
 
 static struct list sleeping_threads;
+static struct lock sleeping_threads_lock;
+
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
@@ -45,7 +47,7 @@ timer_init (void)
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
   
   list_init ( &sleeping_threads );
-  
+  lock_init(&sleeping_threads_lock);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -103,9 +105,12 @@ timer_sleep (int64_t ticks)
   struct thread *t = thread_current();
   ASSERT (intr_get_level () == INTR_ON);
   old_level = intr_disable();
+  
+  lock_acquire(&sleeping_threads_lock);
   t->wakeup_ticks = start + ticks;
   list_insert_ordered( &sleeping_threads, &t->elem, &comp, NULL );
-
+  lock_release(&sleeping_threads_lock);
+  
   thread_block();
   intr_set_level ( old_level );
 }
@@ -186,6 +191,9 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  
+  if (!lock_try_acquire(&sleeping_threads_lock))
+    return;
   while ( !list_empty ( &sleeping_threads ) )
   {
     struct thread * t = list_entry ( list_front ( &sleeping_threads ), struct thread, elem );
@@ -200,6 +208,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
       break;
     }
   }
+  lock_release(&sleeping_threads_lock);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
