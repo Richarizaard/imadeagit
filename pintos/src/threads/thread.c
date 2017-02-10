@@ -247,6 +247,13 @@ thread_unblock (struct thread *t)
   ASSERT (t->status == THREAD_BLOCKED);
   list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
+  struct thread *current = thread_current();
+
+  if(t->priority > current->priority)
+  {
+    thread_yield();
+  }
+
   intr_set_level (old_level);
 }
 
