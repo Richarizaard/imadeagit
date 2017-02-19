@@ -193,8 +193,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
   ticks++;
   thread_tick ();
   
-  if (!lock_try_acquire(&sleeping_threads_lock))
-    return;
   while ( !list_empty ( &sleeping_threads ) )
   {
     struct thread * t = list_entry ( list_front ( &sleeping_threads ), struct thread, elem );
@@ -202,6 +200,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
     {
       list_pop_front( &sleeping_threads ) ;
       thread_unblock( t );
+      intr_yield_on_return();
     }
     else
     {
@@ -209,7 +208,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
       break;
     }
   }
-  lock_release(&sleeping_threads_lock);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
