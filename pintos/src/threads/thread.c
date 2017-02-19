@@ -355,7 +355,7 @@ thread_set_priority (int new_priority)
 
 	if (!list_empty(&ready_list))
 	{
-		struct thread *frontElem = list_front(&ready_list);
+		struct thread *frontElem = list_entry(list_front(&ready_list), struct thread, elem);
 
 		if (frontElem->priority > new_priority)
 		{
