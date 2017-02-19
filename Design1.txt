@@ -6,9 +6,9 @@ CIS 520 - Programming Project #1
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@k-state.edu>
-FirstName LastName <email@k-state.edu>
-...
+Samuel Turner-Lill ssl@ksu.edu
+Michael Johnson michaeljohnson@ksu.edu
+Richard Lee leerichard@ksu.edu
 
 ---- PRELIMINARIES ----
 
@@ -29,24 +29,40 @@ FirstName LastName <email@k-state.edu>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+// Used to store the threads that are blocked. Threads are then removed from the list after they are unblocked
+static struct list sleeping_threads;
+
+// Compares the wakeup_ticks property of two threads
+bool comp (const struct list_elem * a, const struct list_elem * b, void * aux UNUSED)
+
+// Property used to determine when a thread is ready to be unblocked
+int64_t wakeup_ticks;
+
 
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe what happens in a call to your timer_sleep(),
 >> including the effects of the timer interrupt handler.
 
+The function first disabled interrupts and sets the wakeup_ticks property of the current thread to a future tick. 
+The thread is then added to a list of blocked threads and then a call to thread_block() is made to block the current thread.
+
 >> A3: What steps are taken to minimize the amount of time spent in
 >> the timer interrupt handler?
 
+The steps taken to unblock threads are only looked at if the blocked thread list is not empty. Otherwise we just skip over it.
 
 ---- SYNCHRONIZATION ----
 
 >> A4: How are race conditions avoided when multiple threads call
 >> timer_sleep() simultaneously?
 
+By implementing locks within the timer_sleep function
 
 >> A5: How are race conditions avoided when a timer interrupt occurs
 >> during a call to timer_sleep()?
+
+We use a lock_try_acquire in the timer_interupt function so that if the lock is already in use, the critical section is jut skipped. 
 
 
 ---- RATIONALE ----
@@ -54,6 +70,9 @@ FirstName LastName <email@k-state.edu>
 >> A6: Why did you choose this design?  In what ways is it superior to
 >> other designs that you considered?
 
+We tried to keep the design as simple as possible in an effort to reduce the number of places where problems could potentially occur.
+There's no real guarantee that this is the most efficient way to solve this, since we could shorten our critical sections for the locks. 
+However, it is superior in a sense that the number of things that could go wrong is kept to a minimum.
 
 
              PRIORITY SCHEDULING
@@ -64,6 +83,9 @@ FirstName LastName <email@k-state.edu>
 >> B1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+
+// A lock that will serve to prevent multiple threads from colliding within timer_sleep and timer_interupt
+static struct lock &sleeping_threads_lock; 
 
 >> B2: Explain the data structure used to track priority donation.
 
@@ -100,6 +122,7 @@ FirstName LastName <email@k-state.edu>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+
 ---- ALGORITHMS ----
 
 >> C2: Suppose threads A, B, and C have nice values 0, 1, and 2.  Each
@@ -134,4 +157,3 @@ ticks   A   B   C   A   B   C   to run
 >> disadvantages in your design choices.  If you were to have extra
 >> time to work on this part of the project, how might you choose to
 >> refine or improve your design?
-
