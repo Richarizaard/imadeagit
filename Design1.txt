@@ -126,6 +126,8 @@ struct lock *lock_awaited;
 >> B6: Describe a potential race in thread_set_priority() and explain
 >> how your implementation avoids it.  Can you use a lock to avoid
 >> this race?
+//A race could happen if another thread preempts and removes the last item from the list after we
+//check if it's empty, but before we get the item. We avoid this by disabling interrupts. 
 
 ---- RATIONALE ----
 
