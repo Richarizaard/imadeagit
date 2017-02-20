@@ -89,17 +89,29 @@ static struct lock &sleeping_threads_lock;
 
 >> B2: Explain the data structure used to track priority donation.
 
+// We gave our thread class a list of locks that track their own priotities and repeatedly sort this list throughtout our code when those priorities are 
+// updated or when locks are added/removed.
+
 
 ---- ALGORITHMS ----
 
 >> B3: How do you ensure that the highest priority thread waiting for
 >> a lock, semaphore, or condition variable wakes up first?
 
+// When a semaphore becomes available and a thread is unblocked, that thread will always yield the CPU unless its' priority is higher than the top-most element 
+// in our ready_list 
+
 >> B4: Describe the sequence of events when a call to lock_acquire()
 >> causes a priority donation.  How is nested donation handled?
 
+// Within lock_acquire, if this is the first thread to acquire a lock, we skip over the first block of code that would otherwise be 
+// used to handle nested priority donatios up to a depth of 8. Our lock parameter is then given the priority belonging to the current thread and inserted into and ordered 
+// list before being checked if its' priority is now higher than the current threads. In which case, the current threads priority is then updated to match.
+
 >> B5: Describe the sequence of events when lock_release() is called
 >> on a lock that a higher-priority thread is waiting for.
+
+// The lock removes its' element from the list and updates the list of held lock priorities before releasing the semaphore 
 
 ---- SYNCHRONIZATION ----
 
