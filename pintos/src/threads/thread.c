@@ -353,7 +353,7 @@ void thread_priority_donate (struct thread * t)
     
     thread_priority_modify (t);
     
-    if (t->status == THREAD_READY)
+    if (t && t->status == THREAD_READY)
     {
         list_remove(&t->elem);
         list_insert_ordered(&ready_list, &t->elem, compare_thread_elem_priorities, NULL);
@@ -365,14 +365,18 @@ void thread_priority_modify (struct thread * t)
 {
     enum intr_level old_level;
     old_level = intr_disable();
+
     int max_p = t->modified_priority;
     
-    if (!list_empty(&t->locks_held))
+    if (t && !list_empty(&t->locks_held))
     {
       list_sort(&t->locks_held, compare_lock_elem_priority, NULL);
-      int lock_priority = list_entry(list_front(&t->locks_held), struct lock, elem)->max_donated_priority;
-      if (lock_priority > max_p)
-        max_p = lock_priority;
+      int lock_p = list_entry(list_front(&t->locks_held), struct lock, elem)->max_donated_priority;
+
+	  if (max_p < lock_p)
+	  {
+		  max_p = lock_p;
+	  }
     }
     
     t->priority = max_p;
@@ -653,8 +657,11 @@ bool compare_thread_priorities (const struct thread * first, const struct thread
 void thread_try_preempt(void)
 {
   struct thread * cur = thread_current();
+
   if (!list_empty(&ready_list) && cur->priority < list_entry(list_front(&ready_list), struct thread, elem)->priority)
-    thread_yield();
+  {
+	  thread_yield();
+  }
 }
 
 /* Offset of `stack' member within `struct thread'.

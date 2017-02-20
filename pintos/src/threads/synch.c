@@ -69,8 +69,6 @@ sema_down (struct semaphore *sema)
   while (sema->value == 0) 
     {
       list_insert_ordered(&sema->waiters, &thread_current()->elem, &compare_thread_elem_priorities, NULL);
-      
-      //list_push_back (&sema->waiters, &thread_current ()->elem);
       thread_block ();
     }
   sema->value--;
@@ -120,6 +118,7 @@ sema_up (struct semaphore *sema)
                                 struct thread, elem));
   sema->value++;
   thread_try_preempt(); 
+
   intr_set_level (old_level);
 }
 
@@ -195,6 +194,8 @@ lock_init (struct lock *lock)
 void
 lock_acquire (struct lock *lock)
 {
+	// Used https://github.com/microdog/pintos-project-1 's solution to give us an idea of the general order priority donations and locks should be handled. 
+
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
