@@ -132,6 +132,11 @@ struct lock *lock_awaited;
 >> B7: Why did you choose this design?  In what ways is it superior to
 >> another design you considered?
 
+//We came up with this design by logically thinking about what we'd need e.g. lists, locks, semaphores, etc. 
+//in order to implement what was needed. We spent quite a bit of time brainstorming different methods
+//but our current design is what we ended up with. We stepped through our design and most of our code
+//seems rather straightforward, so in a way, it's superior because of cleanliness and simplicity. 
+
 
               ADVANCED SCHEDULER [EXTRA CREDIT]
               =================================
