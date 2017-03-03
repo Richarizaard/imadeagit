@@ -32,31 +32,6 @@ process_execute (const char *commandStr)
   char *fn_copy;
   tid_t tid;
 
-  // first dimension is num of words, second is length in chars
-  char wordsInStr[20][20];
-  char *save_ptr;
-  int i  = 0;
-  char *tokens = malloc(400 * sizeof(char));
-  strlcpy(tokens, commandStr, 400);
-
-  do
-  {
-	  char* newToken = strtok_r(tokens, " ", &save_ptr);
-
-	  if (newToken != NULL)
-	  {
-		  strlcpy(wordsInStr[i], newToken, 20);
-		  i++;
-		  tokens = save_ptr;
-	  }
-	  else
-	  {
-		  break;
-	  }
-
-  } while (save_ptr != NULL);
-
-
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -79,6 +54,29 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
+  char wordsInStr[20][20];
+  char *save_ptr;
+  int i = 0;
+  char *tokens = malloc(400 * sizeof(char));
+  strlcpy(tokens, file_name, 400);
+
+  do
+  {
+	  // parse command line string for individual words/commands and store them
+	  char* newToken = strtok_r(tokens, " ", &save_ptr);
+
+	  if (newToken != NULL)
+	  {
+		  strlcpy(wordsInStr[i], newToken, 20);
+		  i++;
+		  tokens = save_ptr;
+	  }
+	  else
+	  {
+		  break;
+	  }
+
+  } while (save_ptr != NULL);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
