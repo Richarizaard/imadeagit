@@ -13,6 +13,7 @@
 #include "filesys/filesys.h"
 #include "threads/flags.h"
 #include "threads/init.h"
+#include "threads/malloc.h"
 #include "threads/interrupt.h"
 #include "threads/palloc.h"
 #include "threads/thread.h"
@@ -26,20 +27,45 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
 tid_t
-process_execute (const char *file_name) 
+process_execute (const char *commandStr) 
 {
   char *fn_copy;
   tid_t tid;
+
+  // first dimension is num of words, second is length in chars
+  char wordsInStr[20][20];
+  char *save_ptr;
+  int i  = 0;
+  char *tokens = malloc(400 * sizeof(char));
+  strlcpy(tokens, commandStr, 400);
+
+  do
+  {
+	  char* newToken = strtok_r(tokens, " ", &save_ptr);
+
+	  if (newToken != NULL)
+	  {
+		  strlcpy(wordsInStr[i], newToken, 20);
+		  i++;
+		  tokens = save_ptr;
+	  }
+	  else
+	  {
+		  break;
+	  }
+
+  } while (save_ptr != NULL);
+
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
-  strlcpy (fn_copy, file_name, PGSIZE);
+  strlcpy (fn_copy, commandStr, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (commandStr, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -99,6 +125,7 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  printf("%s: exit(%d)\n", cur->name, cur->tid);
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
