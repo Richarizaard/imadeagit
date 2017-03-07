@@ -489,3 +489,79 @@ install_page (void *upage, void *kpage, bool writable)
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
+
+typedef enum
+{
+    NoArg,
+    InArg,
+    InQuotedArg,
+    InEscapedArg,
+} parser_states;
+
+static size_t parse_args(char *command_str, char **args)
+{
+  char * cur = command_str;
+  size_t argCount = 0;
+  parser_states state = NoArg;
+
+  for (cur = command_str; *cur != '\0'; cur++)
+  {
+    switch(state)
+    {
+      case NoArg:
+        if (argCount == MAX_ARGS)
+          return argCount; // We can't parse any more args
+        switch (*cur)
+        {
+          case ' ':
+            continue;
+          case '"':
+            state = InQuotedArg;
+            args[argCount] = cur + 1;
+            argCount++;
+            continue;
+          default:
+            state = InArg;
+            args[argCount] = cur;
+            argCount++;
+        }
+        continue;
+      case InArg:
+        if (*cur == ' ')
+        {
+          state = NoArg;
+          // End of the arg, null out this character
+          *cur = '\0';
+          continue;
+        }
+        continue;
+      case InQuotedArg:
+        if (*cur == '\\')
+        {
+          state = InEscapedArg;
+          continue;
+        }
+        if (*cur == '"')
+        {
+          state = NoArg;
+          // End of the arg, null out this character
+          *cur = '\0';
+        }
+        continue;
+      case InEscapedArg:
+        state = InQuotedArg;
+        if (*cur != '"' && *cur != '\\')
+          continue;
+        // We have an escaped character, copy everything to the right of this over one
+        for (char *next = cur; *next != '\0'; next++)
+        {
+          *(next - 1) = *next;
+        }
+        continue;
+      default:
+        NOT_REACHED();
+    }
+  }
+  
+  return argCount;
+}
