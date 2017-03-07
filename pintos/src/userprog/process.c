@@ -455,19 +455,46 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp, size_t argc UNUSED, char **argv UNUSED)
 {
-  // TODO: Setup the stack with arc and argv and lots of assembly
+  // TODO: Replace with our own work when we hate ourselves enough to write assembly
   uint8_t *kpage;
   bool success = false;
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage != NULL) 
+  if (kpage != NULL)
+  {
+    success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+    if (success)
     {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
-        *esp = PHYS_BASE - 12;
-      else
-        palloc_free_page (kpage);
+      *esp = PHYS_BASE;
+      int i = argc;
+      // this array holds reference to differences arguments in the stack
+      uint32_t * arr[argc];
+      while(--i >= 0)
+      {
+        *esp = *esp - (strlen(argv[i])+1)*sizeof(char);
+        arr[i] = (uint32_t *)*esp;
+        memcpy(*esp,argv[i],strlen(argv[i])+1);
+      }
+      *esp = *esp - 4;
+      (*(int *)(*esp)) = 0;//sentinel
+      i = argc;
+      while( --i >= 0)
+      {
+        *esp = *esp - 4;//32bit
+        (*(uint32_t **)(*esp)) = arr[i];
+      }
+      *esp = *esp - 4;
+      (*(uintptr_t  **)(*esp)) = (*esp+4);
+      *esp = *esp - 4;
+      *(int *)(*esp) = argc;
+      *esp = *esp - 4;
+      (*(int *)(*esp))=0;
     }
+    else
+    {
+      palloc_free_page (kpage);
+    }
+  }
   return success;
 }
 
