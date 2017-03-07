@@ -20,7 +20,8 @@
 #include "threads/vaddr.h"
 
 static thread_func start_process NO_RETURN;
-static bool load (const char *cmdline, void (**eip) (void), void **esp);
+static bool load (char *cmdline, void (**eip) (void), void **esp);
+static size_t parse_args(char *command_str, char **args, size_t max_args);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -30,6 +31,7 @@ tid_t
 process_execute (const char *commandStr) 
 {
   char *fn_copy;
+  char *another_copy;
   tid_t tid;
 
   /* Make a copy of FILE_NAME.
@@ -37,12 +39,30 @@ process_execute (const char *commandStr)
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
+  another_copy = palloc_get_page (0);
+  if (another_copy == NULL)
+  {
+    palloc_free_page (fn_copy);
+    return TID_ERROR;
+  }
   strlcpy (fn_copy, commandStr, PGSIZE);
+  strlcpy (another_copy, commandStr, PGSIZE);
+
+  char * argv[MAX_ARGS];
+  if (parse_args(another_copy, argv, 1) != 1)
+  {
+    palloc_free_page (fn_copy);
+    palloc_free_page (another_copy);
+    return TID_ERROR;
+  }
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (commandStr, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (another_copy, PRI_DEFAULT, start_process, fn_copy);
+  palloc_free_page (another_copy);
   if (tid == TID_ERROR)
+  {
     palloc_free_page (fn_copy); 
+  }
   return tid;
 }
 
@@ -54,29 +74,6 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-  char wordsInStr[20][20];
-  char *save_ptr;
-  int i = 0;
-  char *tokens = malloc(400 * sizeof(char));
-  strlcpy(tokens, file_name, 400);
-
-  do
-  {
-	  // parse command line string for individual words/commands and store them
-	  char* newToken = strtok_r(tokens, " ", &save_ptr);
-
-	  if (newToken != NULL)
-	  {
-		  strlcpy(wordsInStr[i], newToken, 20);
-		  i++;
-		  tokens = save_ptr;
-	  }
-	  else
-	  {
-		  break;
-	  }
-
-  } while (save_ptr != NULL);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -221,7 +218,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp, size_t argc, char **argv);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -232,7 +229,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (const char *file_name, void (**eip) (void), void **esp) 
+load (char *file_name, void (**eip) (void), void **esp)
 {
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -246,6 +243,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
+
+  char * argv[MAX_ARGS];
+  size_t argc = parse_args(file_name, argv, MAX_ARGS);
 
   /* Open executable file. */
   file = filesys_open (file_name);
@@ -328,7 +328,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (esp, argc, argv))
     goto done;
 
   /* Start address. */
@@ -453,8 +453,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp) 
+setup_stack (void **esp, size_t argc UNUSED, char **argv UNUSED)
 {
+  // TODO: Setup the stack with arc and argv and lots of assembly
   uint8_t *kpage;
   bool success = false;
 
@@ -498,7 +499,7 @@ typedef enum
     InEscapedArg,
 } parser_states;
 
-static size_t parse_args(char *command_str, char **args)
+static size_t parse_args(char *command_str, char **args, size_t max_args)
 {
   char * cur = command_str;
   size_t argCount = 0;
@@ -509,7 +510,7 @@ static size_t parse_args(char *command_str, char **args)
     switch(state)
     {
       case NoArg:
-        if (argCount == MAX_ARGS)
+        if (argCount == max_args)
           return argCount; // We can't parse any more args
         switch (*cur)
         {
@@ -557,6 +558,7 @@ static size_t parse_args(char *command_str, char **args)
         {
           *(next - 1) = *next;
         }
+        cur--;
         continue;
       default:
         NOT_REACHED();
