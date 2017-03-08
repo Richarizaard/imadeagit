@@ -2,11 +2,16 @@
 #include "userprog/pagedir.h"
 #include <stdio.h>
 #include <syscall-nr.h>
+#include "threads/init.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
 static void syscall_handler (struct intr_frame *);
+static void syscall_halt();
+static void syscall_exit();
+static void syscall_write(void * arg1);
+static bool check_user_pointer_validity(uint32_t *pd, const void * ptr);
 
 void
 syscall_init (void) 
@@ -18,12 +23,96 @@ static void
 syscall_handler (struct intr_frame *f) 
 {
   intr_dump_frame(f);
-  uint32_t base = f->ebp + 0x24;
-  
-  int argc = *(int*)(base + 4);
-  char **argv = *(char***)(base + 8);
-  printf ("system call! %d %s %s \n", argc, argv[0], argv[1]);
+
+  hex_dump(0, f->esp, 128, true);
+
+  syscall_nums syscall_num = *(syscall_nums *)f->esp;
+  void * arg1 = ((syscall_nums *)f->esp + 1);
+
+  printf("system call! sysnum: %d pointer: %p\n", syscall_num, f->esp);
+
+  switch (syscall_num)
+  {
+    case SYS_HALT:
+		syscall_halt();
+		break;
+	case SYS_EXIT:
+		syscall_exit();
+		break;
+	case SYS_EXEC:
+		break;
+	case SYS_WAIT:
+		break;
+	case SYS_CREATE:
+		break;
+	case SYS_REMOVE:
+		break;
+	case SYS_OPEN:
+		break;
+	case SYS_FILESIZE:
+		break;
+	case SYS_READ:
+		break;
+	case SYS_WRITE:
+		syscall_write(arg1);
+		break;
+	case SYS_SEEK:
+		break;
+	case SYS_TELL:
+		break;
+	case SYS_CLOSE:
+		break;
+
+	case SYS_MMAP:
+		break;
+	case SYS_MUNMAP:
+		break;
+
+	case SYS_CHDIR:
+		break;
+	case SYS_MKDIR:
+		break;
+	case SYS_READDIR:
+		break;
+	case SYS_ISDIR:
+		break;
+	case SYS_INUMBER:
+		break;
+  default:
+	  break;
+  }
   thread_exit ();
+}
+
+/*
+  Halts the entire system
+*/
+static void syscall_halt()
+{
+  shutdown_power_off();
+}
+
+/*
+  Exit the current thread
+*/
+static void syscall_exit()
+{
+  thread_exit();
+}
+
+/*
+  Writes to fd
+*/
+static void syscall_write(void * arg_start)
+{
+	int * arg1 = (int *)arg_start;
+	void ** arg2 = (void **)((int *)arg1 + 1);
+	int * arg3 = (int *)((void *)arg2 + 1);
+
+	int handle = *arg1;
+	void *buffer = *arg2;
+	unsigned length = *arg3;
+	printf("%s", buffer);
 }
 
 /*
