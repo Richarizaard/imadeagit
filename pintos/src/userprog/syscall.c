@@ -15,9 +15,14 @@ syscall_init (void)
 }
 
 static void
-syscall_handler (struct intr_frame *f UNUSED) 
+syscall_handler (struct intr_frame *f) 
 {
-  printf ("system call!\n");
+  intr_dump_frame(f);
+  uint32_t base = f->ebp + 0x24;
+  
+  int argc = *(int*)(base + 4);
+  char **argv = *(char***)(base + 8);
+  printf ("system call! %d %s %s \n", argc, argv[0], argv[1]);
   thread_exit ();
 }
 
