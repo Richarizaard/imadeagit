@@ -10,8 +10,8 @@
 #include "threads/vaddr.h"
 
 static void syscall_handler (struct intr_frame *);
-static void syscall_halt();
-static void syscall_exit();
+static void syscall_halt(void);
+static void syscall_exit(void);
 static int syscall_write(void * arg1);
 static uint32_t route_syscall(syscall_nums num, void * arg_start);
 static bool check_user_pointer_validity(uint32_t *pd, const void * ptr);
@@ -40,7 +40,7 @@ syscall_handler (struct intr_frame *f)
 /*
   Halts the entire system
 */
-static void syscall_halt()
+static void syscall_halt(void)
 {
   shutdown_power_off();
 }
@@ -48,7 +48,7 @@ static void syscall_halt()
 /*
   Exit the current thread
 */
-static void syscall_exit()
+static void syscall_exit(void)
 {
   thread_exit();
 }
