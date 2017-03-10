@@ -10,8 +10,8 @@
 static void syscall_handler (struct intr_frame *);
 static void syscall_halt();
 static void syscall_exit();
-static void syscall_write(void * arg1);
-static void route_syscall(syscall_nums num, void * arg_start);
+static int syscall_write(void * arg1);
+static uint32_t route_syscall(syscall_nums num, void * arg_start);
 static bool check_user_pointer_validity(uint32_t *pd, const void * ptr);
 
 void
@@ -23,18 +23,13 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f) 
 {
-  intr_dump_frame(f);
-
-  hex_dump(0, f->esp, 128, true);
-
   syscall_nums syscall_num = *(syscall_nums *)f->esp;
   void * arg1 = ((syscall_nums *)f->esp + 1);
 
-  printf("system call! sysnum: %d pointer: %p\n", syscall_num, f->esp);
+  //printf("system call! sysnum: %d pointer: %p\n", syscall_num, f->esp);
 
-  route_syscall(syscall_num, arg1);
-
-  thread_exit ();
+  uint32_t ret = route_syscall(syscall_num, arg1);
+  f->eax = ret;
 }
 
 /*
@@ -56,20 +51,21 @@ static void syscall_exit()
 /*
   Writes to fd
 */
-static void syscall_write(void * arg_start)
+static int syscall_write(void * arg_start)
 {
   int * arg1 = (int *)arg_start;
-  void ** arg2 = (void **)((int *)arg1 + 1);
-  int * arg3 = (int *)((void *)arg2 + 1);
+  void ** arg2 = (void **)(arg_start + sizeof(void *));
+  int * arg3 = (int *)(arg_start + sizeof(void *) * 2);
 
   int handle = *arg1;
   void *buffer = *arg2;
   unsigned length = *arg3;
-  printf("%s", buffer);
+  return printf("%.*s", length, buffer);
 }
 
-static void route_syscall(syscall_nums num, void * arg_start)
+static uint32_t route_syscall(syscall_nums num, void * arg_start)
 {
+  uint32_t ret = 0;
   switch (num)
   {
   case SYS_HALT:
@@ -93,7 +89,7 @@ static void route_syscall(syscall_nums num, void * arg_start)
   case SYS_READ:
     break;
   case SYS_WRITE:
-    syscall_write(arg_start);
+    ret = (uint32_t)syscall_write(arg_start);
     break;
   case SYS_SEEK:
     break;
@@ -120,6 +116,7 @@ static void route_syscall(syscall_nums num, void * arg_start)
   default:
     break;
   }
+  return ret;
 }
 
 /*
