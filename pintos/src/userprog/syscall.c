@@ -1,5 +1,6 @@
 #include "userprog/syscall.h"
 #include "userprog/pagedir.h"
+#include "userprog/process.h"
 #include <stdio.h>
 #include <syscall-nr.h>
 #include "threads/init.h"
@@ -48,6 +49,13 @@ static void syscall_exit()
   thread_exit();
 }
 
+static tid_t syscall_exec(void * arg_start)
+{
+  char ** arg1 = (char **)arg_start;
+  char * command_str = *arg1;
+  return process_execute(arg1);
+}
+
 /*
   Writes to fd
 */
@@ -60,6 +68,7 @@ static int syscall_write(void * arg_start)
   int handle = *arg1;
   void *buffer = *arg2;
   unsigned length = *arg3;
+
   return printf("%.*s", length, buffer);
 }
 
@@ -75,6 +84,7 @@ static uint32_t route_syscall(syscall_nums num, void * arg_start)
     syscall_exit();
     break;
   case SYS_EXEC:
+    ret = syscall_exec(arg_start);
     break;
   case SYS_WAIT:
     break;
