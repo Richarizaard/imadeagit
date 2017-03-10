@@ -5,6 +5,7 @@
 #include <syscall-nr.h>
 #include "threads/init.h"
 #include "threads/interrupt.h"
+#include "threads/synch.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
@@ -15,10 +16,13 @@ static int syscall_write(void * arg1);
 static uint32_t route_syscall(syscall_nums num, void * arg_start);
 static bool check_user_pointer_validity(uint32_t *pd, const void * ptr);
 
+static struct lock filesys_lock;
+
 void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+  lock_init(&filesys_lock);
 }
 
 static void
