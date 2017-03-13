@@ -3,6 +3,8 @@
 #include "userprog/process.h"
 #include <stdio.h>
 #include <syscall-nr.h>
+#include "filesys/file.h"
+#include "filesys/filesys.h"
 #include "threads/init.h"
 #include "threads/interrupt.h"
 #include "threads/synch.h"
@@ -60,6 +62,59 @@ static tid_t syscall_exec(void * arg_start)
   return process_execute(arg1);
 }
 
+static bool syscall_create(void * arg_start)
+{
+  char ** arg1 = (char **)arg_start;
+  unsigned * arg2 = (unsigned *)(arg_start + sizeof(void *));
+
+  char * filename = *arg1;
+  unsigned size = *arg2;
+
+  lock_acquire(&filesys_lock);
+  bool success = filesys_create(filename, size);
+  lock_release(&filesys_lock);
+  return success;
+}
+
+static bool syscall_remove(void * arg_start)
+{
+	char ** arg1 = (char **)arg_start;
+	char * filename = *arg1;
+
+	lock_acquire(&filesys_lock);
+	bool ret = filesys_remove(filename);
+	lock_release(&filesys_lock);
+	return ret;
+}
+
+static int syscall_open(void * arg_start)
+{
+	char ** arg1 = (char **)arg_start;
+
+	char * filename = *arg1;
+
+	lock_acquire(&filesys_lock);
+	struct file * file = filesys_open(filename);
+	lock_release(&filesys_lock);
+	if (file == NULL)
+      return -1;
+
+	struct thread * t = thread_current();
+	int fd = t->next_fd++;
+	if (fd < 2)
+		return -1;
+
+	struct file_descriptor * f = malloc(sizeof(struct file_descriptor));
+	if (f == NULL)
+		return -1;
+
+	f->file = file;
+	f->fd = fd;
+	list_push_back(&t->file_list, &f->elem);
+
+	return fd;
+}
+
 /*
   Writes to fd
 */
@@ -93,10 +148,13 @@ static uint32_t route_syscall(syscall_nums num, void * arg_start)
   case SYS_WAIT:
     break;
   case SYS_CREATE:
+    ret = syscall_create(arg_start);
     break;
   case SYS_REMOVE:
+	ret = syscall_remove(arg_start);
     break;
   case SYS_OPEN:
+    ret = syscall_open(arg_start);
     break;
   case SYS_FILESIZE:
     break;
