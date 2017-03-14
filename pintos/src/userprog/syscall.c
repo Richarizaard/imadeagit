@@ -3,14 +3,17 @@
 #include "userprog/process.h"
 #include <stdio.h>
 #include <syscall-nr.h>
+#include "devices/input.h"
+#include "devices/shutdown.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "threads/init.h"
 #include "threads/interrupt.h"
+#include "threads/malloc.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-#include <stdlib.h>
+#include "lib/stdlib.h"
 
 static void syscall_handler (struct intr_frame *);
 static void syscall_halt(void);
@@ -66,7 +69,7 @@ static tid_t syscall_exec(void * arg_start)
 {
   char ** arg1 = (char **)arg_start;
   char * command_str = *arg1;
-  return process_execute(arg1);
+  return process_execute(command_str);
 }
 
 static bool syscall_create(void * arg_start)
@@ -151,9 +154,9 @@ static int syscall_read(void * arg_start)
   uint8_t *buffer = (uint8_t *) *arg2;
   unsigned length = *arg3;
   
-  if(handle == 0)
+  if (handle == 0)
   {
-     for(int i = 0; i < length; i++)
+     for (unsigned i = 0; i < length; i++)
      {
        buffer[i] = input_getc();
      }
@@ -190,7 +193,7 @@ static int syscall_write(void * arg_start)
          // Ignore
     break;
     case 1:
-      return printf("%.*s", length, buffer);
+      return printf("%.*s", length, (char *)buffer);
     default:
        f = get_file_descriptor(handle);
        return file_write(f->file, buffer, length);
@@ -223,7 +226,7 @@ static unsigned syscall_tell(void * arg_start)
   
   struct file_descriptor * desc = get_file_descriptor(fd);
   if (desc == NULL)
-    return;
+    return 0;
   
   return file_tell(desc->file);
 }
