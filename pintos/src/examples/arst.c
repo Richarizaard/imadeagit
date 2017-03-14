@@ -17,7 +17,7 @@ main (int argc, char **argv)
   if (creat)
 	  printf("Create Success!\n");
   else
-	  printf("No create sucess...\n");
+	  printf("Noh cree ate sucess...\n");
 
   int fd1 = open(name);
   int fd2 = open(name2);
@@ -27,6 +27,11 @@ main (int argc, char **argv)
   printf("Writing 'Interior crocodile alligator' to file. %d bytes.\n", write(fd1, "Interior crocodile alligator", 28));
   
   printf("Filezize returned %d.\n", filesize(fd1));
+  
+  printf("fd1 previous position: %d\n", tell(fd1));
+  seek(fd1, 13);
+  printf("fd1 next position: %d\n", tell(fd1));
+  write(fd1, "Chevrolet", 9);
 
   close(fd1);
   close(fd2);

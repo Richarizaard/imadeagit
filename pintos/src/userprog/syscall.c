@@ -15,9 +15,13 @@
 static void syscall_handler (struct intr_frame *);
 static void syscall_halt(void);
 static void syscall_exit(void);
-static void syscall_close(void * arg1);
+static int syscall_open(void * arg1);
 static int syscall_write(void * arg1);
-static struct file_descriptor * get_file(int fd);
+static int syscall_read(void * arg1);
+static void syscall_seek(void * arg1);
+static unsigned syscall_tell(void * arg1);
+static void syscall_close(void * arg1);
+static struct file_descriptor * get_file_descriptor(int fd);
 static uint32_t route_syscall(syscall_nums num, void * arg_start);
 static bool check_user_pointer_validity(uint32_t *pd, const void * ptr);
 
@@ -124,7 +128,7 @@ static int syscall_filesize(void * arg_start)
 	int fd = *arg1;
   int size = -1;
     
-  struct file_descriptor * desc = get_file(fd);
+  struct file_descriptor * desc = get_file_descriptor(fd);
   if (desc == NULL)
   {
     return -1;
@@ -156,7 +160,7 @@ static int syscall_read(void * arg_start)
      return length;
   }
   
-  struct file_descriptor * f = get_file(handle);
+  struct file_descriptor * f = get_file_descriptor(handle);
   if (f == NULL)
   {
     return -1;
@@ -188,7 +192,7 @@ static int syscall_write(void * arg_start)
     case 1:
       return printf("%.*s", length, buffer);
     default:
-       f = get_file(handle);
+       f = get_file_descriptor(handle);
        return file_write(f->file, buffer, length);
     break;
   }
@@ -196,22 +200,49 @@ static int syscall_write(void * arg_start)
   return 0;
 }
 
+static void syscall_seek(void * arg_start)
+{
+  int * arg1 = (int *)arg_start;
+  unsigned * arg2 = (unsigned *)(arg_start + sizeof(void *));
+  
+  int fd = *arg1;
+  unsigned position = *arg2;
+  
+  struct file_descriptor * desc = get_file_descriptor(fd);
+  if (desc == NULL)
+    return;
+  
+  file_seek(desc->file, position);
+}
+
+static unsigned syscall_tell(void * arg_start)
+{
+  int * arg1 = (int *)arg_start;
+  
+  int fd = *arg1;
+  
+  struct file_descriptor * desc = get_file_descriptor(fd);
+  if (desc == NULL)
+    return;
+  
+  return file_tell(desc->file);
+}
+
 static void syscall_close(void * arg_start)
 {
 	int * arg1 = (int *)arg_start;
 	int fd = *arg1;
   
-  struct file_descriptor * desc = get_file(fd);
+  struct file_descriptor * desc = get_file_descriptor(fd);
   if (desc == NULL)
     return;
  
-  
   file_close(desc->file);
   list_remove(&desc->elem);
   free(desc);
 }
 
-static struct file_descriptor * get_file(int fd)
+static struct file_descriptor * get_file_descriptor(int fd)
 {
 	struct thread * t = thread_current();
   struct list * list = &t->file_list;
@@ -247,7 +278,7 @@ static uint32_t route_syscall(syscall_nums num, void * arg_start)
     ret = syscall_create(arg_start);
     break;
   case SYS_REMOVE:
-	ret = syscall_remove(arg_start);
+	  ret = syscall_remove(arg_start);
     break;
   case SYS_OPEN:
     ret = syscall_open(arg_start);
@@ -262,8 +293,10 @@ static uint32_t route_syscall(syscall_nums num, void * arg_start)
     ret = (uint32_t)syscall_write(arg_start);
     break;
   case SYS_SEEK:
+    syscall_seek(arg_start);
     break;
   case SYS_TELL:
+    ret = (uint32_t)syscall_tell(arg_start);
     break;
   case SYS_CLOSE:
     syscall_close(arg_start);
