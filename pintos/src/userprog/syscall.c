@@ -115,6 +115,32 @@ static int syscall_open(void * arg_start)
 	return fd;
 }
 
+static int syscall_filesize(void * arg_start)
+{
+	int * arg1 = (int *)arg_start;
+
+	int fd = *arg1;
+    int size = -1;
+    
+	struct thread * t = thread_current();
+    struct list * list = &t->file_list;
+    struct list_elem * e = list_head (list);
+    while ((e = list_next (e)) != list_end (list)) 
+    {
+      printf("arstneiorstdneiozrsdtnei\n");
+      struct file_descriptor * desc = list_entry(e, struct file_descriptor, elem);
+      if (desc->fd == fd)
+      {
+        lock_acquire(&filesys_lock);
+        size = file_length(desc->file);
+        lock_release(&filesys_lock);
+        break;
+      }
+    }
+
+	return size;
+}
+
 /*
   Writes to fd
 */
@@ -157,6 +183,7 @@ static uint32_t route_syscall(syscall_nums num, void * arg_start)
     ret = syscall_open(arg_start);
     break;
   case SYS_FILESIZE:
+    ret = syscall_filesize(arg_start);
     break;
   case SYS_READ:
     break;

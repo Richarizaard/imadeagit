@@ -13,7 +13,7 @@ main (int argc, char **argv)
   char * name = argv[1];
   char * name2 = argv[2];
 
-  bool creat = create(name, 1);
+  bool creat = create(name, 29);
   if (creat)
 	  printf("Create Success!\n");
   else
@@ -23,9 +23,13 @@ main (int argc, char **argv)
   int fd2 = open(name2);
   printf("Open returned %d.\n", fd1);
   printf("Open returned %d.\n", fd2);
+  
+  printf("Filezize returned %d.\n", filesize(fd1));
 
   close(fd1);
   close(fd2);
+  
+  printf("Filezize returned %d.\n", filesize(fd1));
 
   printf("Open returned %d.\n", open(name));
   printf("Open returned %d.\n", open(name2));
