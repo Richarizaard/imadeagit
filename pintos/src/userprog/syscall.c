@@ -137,7 +137,7 @@ static int syscall_filesize(void * arg_start)
 	return size;
 }
 
-static int syscall_read(void * argstart)
+static int syscall_read(void * arg_start)
 {
   int * arg1 = (int *)arg_start;
   void ** arg2 = (void **)(arg_start + sizeof(void *));
@@ -156,7 +156,7 @@ static int syscall_read(void * argstart)
      return length;
   }
   
-  struct file_descriptor * f = get_file(arg1);
+  struct file_descriptor * f = get_file(handle);
   if (f == NULL)
   {
     return -1;
@@ -229,7 +229,7 @@ static struct file_descriptor * get_file(int fd)
 
 static uint32_t route_syscall(syscall_nums num, void * arg_start)
 {
-  uint32_t ret = 0;
+  uint32_t ret = -999;
   switch (num)
   {
   case SYS_HALT:
@@ -256,6 +256,7 @@ static uint32_t route_syscall(syscall_nums num, void * arg_start)
     ret = syscall_filesize(arg_start);
     break;
   case SYS_READ:
+    ret = syscall_read(arg_start);
     break;
   case SYS_WRITE:
     ret = (uint32_t)syscall_write(arg_start);
