@@ -10,11 +10,14 @@
 #include "threads/synch.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include <stdlib.h>
 
 static void syscall_handler (struct intr_frame *);
 static void syscall_halt(void);
 static void syscall_exit(void);
+static void syscall_close(void * arg1);
 static int syscall_write(void * arg1);
+static struct file_descriptor * get_file(int fd);
 static uint32_t route_syscall(syscall_nums num, void * arg_start);
 static bool check_user_pointer_validity(uint32_t *pd, const void * ptr);
 
@@ -104,13 +107,13 @@ static int syscall_open(void * arg_start)
 	if (fd < 2)
 		return -1;
 
-	struct file_descriptor * f = malloc(sizeof(struct file_descriptor));
-	if (f == NULL)
+	struct file_descriptor * desc = malloc(sizeof(struct file_descriptor));
+	if (desc == NULL)
 		return -1;
 
-	f->file = file;
-	f->fd = fd;
-	list_push_back(&t->file_list, &f->elem);
+	desc->file = file;
+	desc->fd = fd;
+	list_push_back(&t->file_list, &desc->elem);
 
 	return fd;
 }
@@ -118,27 +121,49 @@ static int syscall_open(void * arg_start)
 static int syscall_filesize(void * arg_start)
 {
 	int * arg1 = (int *)arg_start;
-
 	int fd = *arg1;
-    int size = -1;
+  int size = -1;
     
-	struct thread * t = thread_current();
-    struct list * list = &t->file_list;
-    struct list_elem * e = list_head (list);
-    while ((e = list_next (e)) != list_end (list)) 
-    {
-      printf("arstneiorstdneiozrsdtnei\n");
-      struct file_descriptor * desc = list_entry(e, struct file_descriptor, elem);
-      if (desc->fd == fd)
-      {
-        lock_acquire(&filesys_lock);
-        size = file_length(desc->file);
-        lock_release(&filesys_lock);
-        break;
-      }
-    }
+  struct file_descriptor * desc = get_file(fd);
+  if (desc == NULL)
+  {
+    return -1;
+  }
+  
+  lock_acquire(&filesys_lock);
+  size = file_length(desc->file);
+  lock_release(&filesys_lock);
 
 	return size;
+}
+
+static int syscall_read(void * argstart)
+{
+  int * arg1 = (int *)arg_start;
+  void ** arg2 = (void **)(arg_start + sizeof(void *));
+  int * arg3 = (int *)(arg_start + sizeof(void *) * 2);
+
+  int handle = *arg1;
+  uint8_t *buffer = (uint8_t *) *arg2;
+  unsigned length = *arg3;
+  
+  if(handle == 0)
+  {
+     for(int i = 0; i < length; i++)
+     {
+       buffer[i] = input_getc();
+     }
+     return length;
+  }
+  
+  struct file_descriptor * f = get_file(arg1);
+  if (f == NULL)
+  {
+    return -1;
+  }
+  int bytesRead = file_read(f->file, buffer, length);
+  
+  return bytesRead;
 }
 
 /*
@@ -154,7 +179,52 @@ static int syscall_write(void * arg_start)
   void *buffer = *arg2;
   unsigned length = *arg3;
 
-  return printf("%.*s", length, buffer);
+  struct file_descriptor * f;
+  switch(handle)
+  {
+    case 0:
+         // Ignore
+    break;
+    case 1:
+      return printf("%.*s", length, buffer);
+    default:
+       f = get_file(handle);
+       return file_write(f->file, buffer, length);
+    break;
+  }
+  
+  return 0;
+}
+
+static void syscall_close(void * arg_start)
+{
+	int * arg1 = (int *)arg_start;
+	int fd = *arg1;
+  
+  struct file_descriptor * desc = get_file(fd);
+  if (desc == NULL)
+    return;
+ 
+  
+  file_close(desc->file);
+  list_remove(&desc->elem);
+  free(desc);
+}
+
+static struct file_descriptor * get_file(int fd)
+{
+	struct thread * t = thread_current();
+  struct list * list = &t->file_list;
+  struct list_elem * e = list_head (list);
+  while ((e = list_next (e)) != list_end (list)) 
+  {
+    struct file_descriptor * desc = list_entry(e, struct file_descriptor, elem);
+    if (desc->fd == fd)
+    {
+      return desc;
+    }
+  }
+  return NULL;
 }
 
 static uint32_t route_syscall(syscall_nums num, void * arg_start)
@@ -195,6 +265,7 @@ static uint32_t route_syscall(syscall_nums num, void * arg_start)
   case SYS_TELL:
     break;
   case SYS_CLOSE:
+    syscall_close(arg_start);
     break;
 
   case SYS_MMAP:

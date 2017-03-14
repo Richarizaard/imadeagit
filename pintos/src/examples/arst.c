@@ -24,6 +24,12 @@ main (int argc, char **argv)
   printf("Open returned %d.\n", fd1);
   printf("Open returned %d.\n", fd2);
   
+  printf("Writing 'Interior crocodile alligator' to file\n", write(fd1, "Interior crocodile alligator", 28));
+  
+  char buffGuy[28];
+  read(fd1, buffGuy, 28);
+  printf("Reading from file :: %s\n", buffGuy);
+  
   printf("Filezize returned %d.\n", filesize(fd1));
 
   close(fd1);
