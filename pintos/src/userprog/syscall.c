@@ -145,7 +145,7 @@ static int syscall_write(void * arg_start)
     case 1:
       return printf("%.*s", length, (char *)buffer);
     default:
-      process_file_write(handle, buffer, length);
+      return process_file_write(handle, buffer, length);
     break;
   }
   

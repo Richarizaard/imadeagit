@@ -176,7 +176,8 @@ process_file_remove(const char * filename)
   return ret;
 }
 
-int process_file_open(const char * filename)
+int
+process_file_open(const char * filename)
 {
   lock_acquire(&filesys_lock);
 	struct file * file = filesys_open(filename);
@@ -226,14 +227,24 @@ process_file_read(int fd, void *buffer, unsigned length)
   {
     return -1;
   }
-  return file_read(desc->file, buffer, length);
+  
+  lock_acquire(&filesys_lock);
+  int bytesRead = file_read(desc->file, buffer, length);
+  lock_release(&filesys_lock);
+  
+  return bytesRead;
 }
 
 int
 process_file_write(int fd, void * buffer, unsigned length)
 {
   struct file_descriptor * desc = get_file_descriptor(fd);
-  return file_write(desc->file, buffer, length);
+  
+  lock_acquire(&filesys_lock);
+  int bytesWritten = file_write(desc->file, buffer, length);
+  lock_release(&filesys_lock);
+  
+  return bytesWritten;
 }
 
 void
@@ -243,7 +254,9 @@ process_file_seek(int fd, unsigned position)
   if (desc == NULL)
     return;
   
+  lock_acquire(&filesys_lock);
   file_seek(desc->file, position);
+  lock_release(&filesys_lock);
 }
 
 unsigned
@@ -253,7 +266,10 @@ process_file_tell(int fd)
   if (desc == NULL)
     return 0;
   
-  return file_tell(desc->file);
+  lock_acquire(&filesys_lock);
+  unsigned position = file_tell(desc->file);
+  lock_release(&filesys_lock);
+  return position;
 }
 
 void
@@ -269,7 +285,9 @@ process_file_close(int fd)
 static void file_descriptor_close(struct file_descriptor * desc)
 {
   list_remove(&desc->elem);
+  lock_acquire(&filesys_lock);
   file_close(desc->file);
+  lock_release(&filesys_lock);
   free(desc);
 }
 
