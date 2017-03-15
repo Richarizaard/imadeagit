@@ -139,7 +139,8 @@ process_exit (void)
   {
     file_descriptor_close(list_entry(e, struct file_descriptor, elem));
   }
-  
+  if (cur->exec_file != NULL)
+    file_allow_write(cur->exec_file);
   if (pd != NULL) 
   {
     /* Correct ordering here is crucial.  We must set
@@ -477,7 +478,15 @@ load (char *file_name, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+  if (success)
+  {
+    file_deny_write(file);
+    t->exec_file = file;
+  }
+  else
+  {
+    file_close (file);
+  }
   return success;
 }
 
