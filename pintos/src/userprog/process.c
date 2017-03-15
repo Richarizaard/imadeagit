@@ -16,12 +16,17 @@
 #include "threads/malloc.h"
 #include "threads/interrupt.h"
 #include "threads/palloc.h"
+#include "threads/synch.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+
+static struct lock filesys_lock;
 
 static thread_func start_process NO_RETURN;
 static bool load (char *cmdline, void (**eip) (void), void **esp);
 static size_t parse_args(char *command_str, char **args, size_t max_args);
+static struct file_descriptor * get_file_descriptor(int fd);
+
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -138,6 +143,122 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+}
+bool
+process_file_create(const char * filename, unsigned size)
+{
+  lock_acquire(&filesys_lock);
+  bool success = filesys_create(filename, size);
+  lock_release(&filesys_lock);
+  
+  return success;
+}
+bool
+process_file_remove(const char * filename)
+{
+  lock_acquire(&filesys_lock);
+	bool ret = filesys_remove(filename);
+	lock_release(&filesys_lock);
+  
+  return ret;
+}
+int process_file_open(const char * filename)
+{
+  lock_acquire(&filesys_lock);
+	struct file * file = filesys_open(filename);
+	lock_release(&filesys_lock);
+	if (file == NULL)
+      return -1;
+
+	struct thread * t = thread_current();
+	int fd = t->next_fd++;
+	if (fd < 2)
+		return -1;
+
+	struct file_descriptor * desc = malloc(sizeof(struct file_descriptor));
+	if (desc == NULL)
+		return -1;
+
+	desc->file = file;
+	desc->fd = fd;
+	list_push_back(&t->file_list, &desc->elem);
+
+	return fd;
+}
+
+
+int
+process_file_size(int fd)
+{
+  struct file_descriptor * desc = get_file_descriptor(fd);
+  int size = -1;
+    
+  if (desc == NULL)
+  {
+    return -1;
+  }
+  
+  lock_acquire(&filesys_lock);
+  size = file_length(desc->file);
+  lock_release(&filesys_lock);
+
+	return size;
+}
+
+int
+process_file_read(int fd, void *buffer, unsigned length)
+{
+  struct file_descriptor * desc = get_file_descriptor(fd);
+  if (desc == NULL)
+  {
+    return -1;
+  }
+  return file_read(desc->file, buffer, length);
+}
+
+int
+process_file_write(int fd, void * buffer, unsigned length)
+{
+  struct file_descriptor * desc = get_file_descriptor(fd);
+  return file_write(desc->file, buffer, length);
+}
+
+void
+process_file_seek(int fd, unsigned position)
+{
+  struct file_descriptor * desc = get_file_descriptor(fd);
+  if (desc == NULL)
+    return;
+  
+  file_seek(desc->file, position);
+}
+
+unsigned
+process_file_tell(int fd)
+{
+  struct file_descriptor * desc = get_file_descriptor(fd);
+  if (desc == NULL)
+    return 0;
+  
+  return file_tell(desc->file);
+}
+
+void
+process_file_close(int fd)
+{
+  struct file_descriptor * desc = get_file_descriptor(fd);
+  if (desc == NULL)
+    return;
+ 
+  file_close(desc->file);
+  list_remove(&desc->elem);
+  free(desc);
+}
+
+void
+process_init()
+{
+  lock_init(&filesys_lock);
 }
 
 /* Sets up the CPU for running user code in the current
@@ -517,6 +638,23 @@ install_page (void *upage, void *kpage, bool writable)
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
+}
+
+static struct file_descriptor * 
+get_file_descriptor(int fd)
+{
+	struct thread * t = thread_current();
+  struct list * list = &t->file_list;
+  struct list_elem * e = list_head (list);
+  while ((e = list_next (e)) != list_end (list)) 
+  {
+    struct file_descriptor * desc = list_entry(e, struct file_descriptor, elem);
+    if (desc->fd == fd)
+    {
+      return desc;
+    }
+  }
+  return NULL;
 }
 
 typedef enum
