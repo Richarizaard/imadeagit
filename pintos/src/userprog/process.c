@@ -25,6 +25,7 @@ static struct lock filesys_lock;
 static thread_func start_process NO_RETURN;
 static bool load (char *cmdline, void (**eip) (void), void **esp);
 static size_t parse_args(char *command_str, char **args, size_t max_args);
+static void file_descriptor_close(struct file_descriptor * desc);
 static struct file_descriptor * get_file_descriptor(int fd);
 
 
@@ -127,23 +128,33 @@ process_exit (void)
   uint32_t *pd;
 
   printf("%s: exit(%d)\n", cur->name, cur->tid);
+  
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
+  
+  struct list * list = &cur->file_list;
+  struct list_elem * e;
+  while ((e = list_begin(list)) != list_end (list)) 
+  {
+    file_descriptor_close(list_entry(e, struct file_descriptor, elem));
+  }
+  
   if (pd != NULL) 
-    {
-      /* Correct ordering here is crucial.  We must set
-         cur->pagedir to NULL before switching page directories,
-         so that a timer interrupt can't switch back to the
-         process page directory.  We must activate the base page
-         directory before destroying the process's page
-         directory, or our active page directory will be one
-         that's been freed (and cleared). */
-      cur->pagedir = NULL;
-      pagedir_activate (NULL);
-      pagedir_destroy (pd);
-    }
+  {
+    /* Correct ordering here is crucial.  We must set
+       cur->pagedir to NULL before switching page directories,
+       so that a timer interrupt can't switch back to the
+       process page directory.  We must activate the base page
+       directory before destroying the process's page
+       directory, or our active page directory will be one
+       that's been freed (and cleared). */
+    cur->pagedir = NULL;
+    pagedir_activate (NULL);
+    pagedir_destroy (pd);
+  }
 }
+
 bool
 process_file_create(const char * filename, unsigned size)
 {
@@ -153,6 +164,7 @@ process_file_create(const char * filename, unsigned size)
   
   return success;
 }
+
 bool
 process_file_remove(const char * filename)
 {
@@ -162,6 +174,7 @@ process_file_remove(const char * filename)
   
   return ret;
 }
+
 int process_file_open(const char * filename)
 {
   lock_acquire(&filesys_lock);
@@ -185,7 +198,6 @@ int process_file_open(const char * filename)
 
 	return fd;
 }
-
 
 int
 process_file_size(int fd)
@@ -250,8 +262,13 @@ process_file_close(int fd)
   if (desc == NULL)
     return;
  
-  file_close(desc->file);
+  file_descriptor_close(desc);
+}
+
+static void file_descriptor_close(struct file_descriptor * desc)
+{
   list_remove(&desc->elem);
+  file_close(desc->file);
   free(desc);
 }
 
@@ -276,7 +293,7 @@ process_activate (void)
      interrupts. */
   tss_update ();
 }
-
+
 /* We load ELF binaries.  The following definitions are taken
    from the ELF specification, [ELF1], more-or-less verbatim.  */
 
