@@ -7,10 +7,9 @@
 ---- GROUP ----
 
 >> Fill in the names of your group members.
-
-FirstName LastName
-FirstName LastName
-FirstName LastName
+Sam Lill
+Richard Lee
+Michael Johnson
 
 ---- PRELIMINARIES ----
 
@@ -21,6 +20,12 @@ FirstName LastName
 >> preparing your submission, other than the Pintos documentation, course
 >> text, lecture notes, and course staff.
 
+https://github.com/pindexis/pintos-project2/blob/master/userprog/process.c
+
+Our implementation of setup_stack() and the solution of the file we referenced are vaguely similar 
+due to the fact that other methods of setting up the stack would follow the same steps with 
+only minor differences in variable names and types of loops.
+
 			   ARGUMENT PASSING
 			   ================
 
@@ -30,20 +35,47 @@ FirstName LastName
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+struct file_descriptor
+{
+	
+struct file * file;
+	
+int fd;
+	
+struct list_elem elem;
+
+};
+
+A struct that contains several properties that make an open file unique for a particular process
+
+
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe how you implemented argument parsing.  How do
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
+We created a state machine that iterated through each character read in from the command line. 
+Depending on that character, we set different states and performed different actions.
+
 ---- RATIONALE ----
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
+
+Because strtok() maintains the internal state while strtok_r() is reentrant, 
+therefore more suitable for multithreading.
 
 >> A4: In Pintos, the kernel separates commands into an executable name
 >> and arguments.  In Unix-like systems, the shell does this
 >> separation.  Identify at least two advantages of the Unix approach.
 
+1. Less responsilbity/load on the kernel. Arguement separation needs
+to be done regardless, better to have the shell do it, and let the 
+kernel worry about bigger problems.
+2. Allowing the shells to parse the arguements allows for 
+unique features such as autocompletion or syntax highlighting. 
+3. In the case of an invalid string, there's no need to send
+that invalid call to the kernel, it is stopped at the shell.
 			     SYSTEM CALLS
 			     ============
 
@@ -53,10 +85,17 @@ FirstName LastName
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+struct list file_list;
+A list of open files for a particular thread
+
+struct file * exec_file; 
+The current executable. Used to allow/deny writing
+
 >> B2: Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
-
+File descriptors are unique within a single process. Our descriptors start at 3 and
+increment by 1 for each additional open file.
 ---- ALGORITHMS ----
 
 >> B3: Describe your code for reading and writing user data from the
@@ -69,8 +108,19 @@ FirstName LastName
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
 
+The greatest number of inspections or call to pagedir_get_page()
+is 2, and the least number is 1. The number of inspections for 2 
+bytes of data should remain the same since it only depends on the number 
+of pages containing references to data.
+
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
+
+Each of our parent processes has a list of child processes. The loss of
+a parent process does not directly affect the children, until the child
+process dies. When the child process dies, if the parent exists, the child
+is removed from the list of children that particular parent owns, and dies. 
+Otherwise, the child dies. 
 
 >> B6: Any access to user program memory at a user-specified address
 >> can fail due to a bad pointer value.  Such accesses must cause the
@@ -93,6 +143,11 @@ FirstName LastName
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
 
+Inside of our call to process_execute() we perform several argument checks that
+all return TID_ERROR upon failing. Should an argument pass these checks,
+a new thread is created and the tid of that thread is returned. Otherwise, -1 is
+returned to the calling thread.
+
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
 >> calls wait(C) before C exits?  After C exits?  How do you ensure
@@ -100,16 +155,38 @@ FirstName LastName
 >> terminates without waiting, before C exits?  After C exits?  Are
 >> there any special cases?
 
+We ensure proper synchronization by:
+	When the child dies, acquire a lock, then check if parent
+	exists. If it does, removes the child from the list of
+	children owned by the parents, after, we release the lock. 
+In the case where the parent dies, we:
+	Acquire a lock, set parent of children to NULL, then
+	release the lock.
+
+We unsure all resources are freed by calling free() when a resource is no
+longer needed.
+
 ---- RATIONALE ----
 
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
 
+Because it was simple. We checked the validity of user pointers and if there were
+no problems, the function proceeds and the process is started.
+
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
 
+The design for our file descriptor is very simple. Any additional information that
+we may need from a descriptor is derived from one of the existing properties.
+The disadvantage of our implementation is that in situations where it would
+be convenient to have extra properties, we're forced to write additional code in the
+calling function to get what we want.
+
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
+
+We did not change this. We felt is was simplest to leave it as identity mapping.
 
 			   SURVEY QUESTIONS
 			   ================
@@ -122,6 +199,9 @@ the quarter.
 
 >> In your opinion, was this assignment, or any one of the three problems
 >> in it, too easy or too hard?  Did it take too long or too little time?
+
+Setting up the stack was difficult and would have been impossible without
+inspiration since the pdf gave no real direction about that part.
 
 >> Did you find that working on a particular part of the assignment gave
 >> you greater insight into some aspect of OS design?

@@ -619,49 +619,63 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp, size_t argc UNUSED, char **argv UNUSED)
+setup_stack(void **esp, size_t argc, char **argv)
 {
-  // TODO: Replace with our own work when we hate ourselves enough to write assembly
-  uint8_t *kpage;
-  bool success = false;
+	// Inspiration for this particular function was from https://github.com/pindexis/pintos-project2/blob/master/userprog/process.c
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage != NULL)
-  {
-    success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-    if (success)
-    {
-      *esp = PHYS_BASE;
-      int i = argc;
-      // this array holds reference to differences arguments in the stack
-      uint32_t * arr[argc];
-      while(--i >= 0)
-      {
-        *esp = *esp - (strlen(argv[i])+1)*sizeof(char);
-        arr[i] = (uint32_t *)*esp;
-        memcpy(*esp,argv[i],strlen(argv[i])+1);
-      }
-      *esp = *esp - 4;
-      (*(int *)(*esp)) = 0;//sentinel
-      i = argc;
-      while( --i >= 0)
-      {
-        *esp = *esp - 4;//32bit
-        (*(uint32_t **)(*esp)) = arr[i];
-      }
-      *esp = *esp - 4;
-      (*(uintptr_t  **)(*esp)) = (*esp+4);
-      *esp = *esp - 4;
-      *(int *)(*esp) = argc;
-      *esp = *esp - 4;
-      (*(int *)(*esp))=0;
-    }
-    else
-    {
-      palloc_free_page (kpage);
-    }
-  }
-  return success;
+	uint8_t *kpage;
+	bool success = false;
+	const int POINTER_SIZE = 4;
+
+	kpage = palloc_get_page(PAL_USER | PAL_ZERO);
+
+	if (kpage != NULL)
+	{
+		// Map page from user vm to kernel vm
+		success = install_page(((uint8_t *)PHYS_BASE) - PGSIZE, kpage, true);
+
+		// If the attempt to map the page to kernel vm fails, skip this section of code, free the page and return false
+		if (success)
+		{
+			*esp = PHYS_BASE;
+			int i = argc - 1;
+
+			uint32_t * argumentList[argc];
+
+			// Stores each argument onto the stack
+			while (i >= 0)
+			{
+				*esp = *esp - (strlen(argv[i]) + 1) * sizeof(char);
+				argumentList[i] = (uint32_t *)*esp;
+				memcpy(*esp, argv[i], strlen(argv[i]) + 1);
+				i--;
+			}
+
+			*esp = *esp - POINTER_SIZE;
+			(*(int *)(*esp)) = 0;
+			int j = argc - 1;
+
+			while (j >= 0)
+			{
+				*esp = *esp - POINTER_SIZE;
+				(*(uint32_t **)(*esp)) = argumentList[j];
+				j--;
+			}
+
+			// We have to atleast do this
+			*esp = *esp - POINTER_SIZE;
+			(*(uintptr_t  **)(*esp)) = (*esp + POINTER_SIZE);
+			*esp = *esp - POINTER_SIZE;
+			*(int *)(*esp) = argc;
+			*esp = *esp - POINTER_SIZE;
+			(*(int *)(*esp)) = 0;
+		}
+		else
+		{
+			palloc_free_page(kpage);
+		}
+	}
+	return success;
 }
 
 /* Adds a mapping from user virtual address UPAGE to kernel
