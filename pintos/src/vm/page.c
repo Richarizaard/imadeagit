@@ -134,7 +134,7 @@ page_in (void *fault_addr)
 bool
 page_out (struct page *p) 
 {
-  bool dirty;
+  bool dirty = false;
   bool ok = false;
 
   ASSERT (p->frame != NULL);
@@ -145,15 +145,18 @@ page_out (struct page *p)
      dirty bit, to prevent a race with the process dirtying the
      page. */
 
-/* add code here */
+  uint32_t *pd = thread_current()->pagedir;
+  pagedir_clear_page(pd, p->addr);
 
   /* Has the frame been modified? */
 
-/* add code here */
+  dirty = pagedir_is_dirty(pd, p->addr);
 
   /* Write frame contents to disk if necessary. */
-
-/* add code here */
+  if (dirty)
+  {
+    return swap_out(p);
+  }
 
   return ok;
 }
