@@ -51,9 +51,19 @@ page_for_addr (const void *address)
         return hash_entry (e, struct page, hash_elem);
 
       /* No page.  Expand stack? */
-
-/* add code */
-
+      void *esp = thread_current()->user_esp;
+      void *espPage = pg_round_down(esp - 32);
+      void *stackLimit = PHYS_BASE - STACK_MAX + PGSIZE;
+      // Only expand the stack if the stack pointer is within than the maximum stack size
+      if (espPage > stackLimit)
+      {
+        // Only expand the stack if the address is in the stack page or the next stack page
+        if (espPage < address)
+        {
+          /* Expand stack. */
+          return page_allocate(address, false);
+        }
+      }
     }
   return NULL;
 }
