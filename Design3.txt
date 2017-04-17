@@ -1,5 +1,5 @@
 		           +---------------------------+
-       	       |         CIS 520           |
+       	           |         CIS 520           |
 		           | PROJECT 3: Virtual Memory |
 		           |     DESIGN DOCUMENT       |
 		           +---------------------------+
@@ -8,9 +8,9 @@
 
 >> Fill in the names of your group members.
 
-Michael Johnson
+Samuel Turner-Lill
 Richard Lee
-Sam Lill
+Michael Johnson
 
 ---- PRELIMINARIES ----
 
@@ -42,9 +42,24 @@ Sam Lill
 >> B1: When a frame is required but none is free, some frame must be
 >> evicted.  Describe the algorithm used to choose a frame to evict.
 
+First, a lock is acquired. Next, if the page for the frame is NULL, we set the page
+property for the frame to the page that was passed in (at which point, the lock is then 
+released and we return). Otherwise, the algorithm checks to see if the page has been 
+recently used. If so, we release the lock and continue to another frame. If neither of these
+conditions are met, we have a frame that needs to be evicted and begin by attempting to call 
+page_out. If it returns false, we simply return NULL. Otherwise, we manually set the page->frame
+property to NULL and the page to the page passed in.
+
 >> B2: Explain your heuristic for deciding whether a page fault for an
 >> invalid virtual address should cause the stack to be extended into
 >> the page that faulted.
+
+First, we get the stack pointer for the current thread. Next we calculate the stack pointer for 
+the page we plan on utilizing by subtracting 32 from the top of the stack inorder for us
+to be able ot use the PUSH and PUSHA instructions. After that, we begin checking the first of several
+conditions. The first condition we check for is the the stack pointer for the page is within the max stack
+size. If that test passes, we then check to be sure the address that was passed in is within either this stack
+page or the following stack page. If both tests have passed, we then expand the stack.
 
 			 MEMORY MAPPED FILES
 			 ===================
@@ -91,6 +106,10 @@ the quarter.
 >> Is there some particular fact or hint we should give students in
 >> future quarters to help them solve the problems?  Conversely, did you
 >> find any of our guidance to be misleading?
+
+We didn't know that some parts of the assignment had already been partially
+implemented before hand. So in some spots, we duplicated functions that already 
+existed, leading to some confusion before we realized what was going on.
 
 >> Do you have any suggestions for the TAs to more effectively assist
 >> students, either for future quarters or the remaining projects?
