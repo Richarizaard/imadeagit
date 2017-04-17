@@ -163,10 +163,7 @@ page_out (struct page *p)
   dirty = pagedir_is_dirty(pd, p->addr);
 
   /* Write frame contents to disk if necessary. */
-  if (dirty)
-  {
-    return swap_out(p);
-  }
+  ok = swap_out(p);
 
   return ok;
 }

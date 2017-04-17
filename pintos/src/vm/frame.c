@@ -92,6 +92,7 @@ try_frame_alloc_and_lock (struct page *page)
           return NULL;
         }
 
+      f->page->frame = NULL;
       f->page = page;
       return f;
     }
